@@ -35,7 +35,7 @@ def web_search(query: str, top_k: int = 5) -> list[dict]:
         response.raise_for_status()
         data = response.json()
 
-        organic_results = data.get("organic_results", [])
+        organic_results = data.get("organic", [])
         
         if not organic_results:
             logger.info("No results found for query: '%s'", query)

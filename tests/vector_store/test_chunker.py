@@ -1,5 +1,5 @@
 import pytest
-from research_agent.retrieval.chunker import chunk_text
+from research_agent.vector_store.chunker import chunk_text
 
 def test_chunk_text_basic():
     text = "A" * 1000

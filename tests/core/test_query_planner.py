@@ -1,4 +1,4 @@
-from research_agent.core.query_generator import QueryGenerator
+from research_agent.core.query_planner import QueryPlanner
 import json
 
 _REQUIRED_FACET_TERMS = (
@@ -11,7 +11,7 @@ _REQUIRED_FACET_TERMS = (
 
 
 def test_query_generator_generate_queries(mock_llm_client):
-    generator = QueryGenerator(llm_client=mock_llm_client)
+    generator = QueryPlanner(llm_client=mock_llm_client)
     queries = generator.generate_queries("test topic")
 
     assert len(queries) == 2
@@ -22,19 +22,19 @@ def test_query_generator_generate_queries(mock_llm_client):
 
 def test_parse_queries_json():
     raw = '["query 1", "query 2"]'
-    queries = QueryGenerator._parse_queries(raw)
+    queries = QueryPlanner._parse_queries(raw)
     assert queries == ["query 1", "query 2"]
 
 
 def test_parse_queries_markdown():
     raw = 'Here are your queries:\n```json\n["query 1", "query 2"]\n```'
-    queries = QueryGenerator._parse_queries(raw)
+    queries = QueryPlanner._parse_queries(raw)
     assert queries == ["query 1", "query 2"]
 
 
 def test_parse_queries_fallback():
     raw = 'Here are some queries:\n1. query 1\n- query 2\n* "query 3"'
-    queries = QueryGenerator._parse_queries(raw)
+    queries = QueryPlanner._parse_queries(raw)
     assert "query 1" in queries
     assert "query 2" in queries
     assert "query 3" in queries
@@ -47,11 +47,11 @@ def test_dedupe_queries_removes_repetition_preserves_order():
         "baz",
         "baz",
     ]
-    assert QueryGenerator._dedupe_queries(qs) == ["foo bar", "baz"]
+    assert QueryPlanner._dedupe_queries(qs) == ["foo bar", "baz"]
 
 
 def test_generate_queries_from_gaps_invokes_llm_with_facet_rich_system_prompt(mock_llm_client):
-    generator = QueryGenerator(llm_client=mock_llm_client)
+    generator = QueryPlanner(llm_client=mock_llm_client)
     out = generator.generate_queries_from_gaps("renewable energy")
 
     mock_llm_client.chat.assert_called_once()
@@ -76,7 +76,7 @@ def test_generate_queries_from_gaps_returns_diverse_non_repetitive_list(mock_llm
     ]
     mock_llm_client.chat.return_value = json.dumps(diverse)
 
-    generator = QueryGenerator(llm_client=mock_llm_client)
+    generator = QueryPlanner(llm_client=mock_llm_client)
     queries = generator.generate_queries_from_gaps("some topic")
 
     assert len(queries) == len(diverse)
@@ -87,7 +87,7 @@ def test_generate_queries_from_gaps_dedupes_when_llm_repeats(mock_llm_client):
     raw = '["same angle", "SAME  angle", "unique query"]'
     mock_llm_client.chat.return_value = raw
 
-    generator = QueryGenerator(llm_client=mock_llm_client)
+    generator = QueryPlanner(llm_client=mock_llm_client)
     queries = generator.generate_queries_from_gaps("x")
 
     assert queries == ["same angle", "unique query"]

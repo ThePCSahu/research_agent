@@ -38,7 +38,7 @@ def test_max_iterations_returns_finish_without_llm():
         gaps=["still missing X"],
         iteration=5,
     )
-    with patch.dict(os.environ, {"MAX_ITERATIONS": "5"}):
+    with patch.dict(os.environ, {"AGENT_MAX_ITERATIONS": "5"}):
         engine = DecisionEngine()
         with patch.object(engine.llm, "chat") as mock_chat:
             out = engine.decide_next_step(state)
@@ -75,7 +75,7 @@ def test_fallback_to_planner_when_llm_returns_no_queries(mock_llm_client):
     mock_qg = MagicMock()
     mock_qg.generate_queries_from_gaps.return_value = planned
 
-    engine = DecisionEngine(llm_client=mock_llm_client, query_generator=mock_qg)
+    engine = DecisionEngine(llm_client=mock_llm_client, query_planner=mock_qg)
     out = engine.decide_next_step(state)
 
     mock_qg.generate_queries_from_gaps.assert_called_once()

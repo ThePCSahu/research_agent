@@ -3,7 +3,7 @@ import logging
 
 from research_agent.memory.state import AgentState
 from research_agent.vector_store.vector_store_client import VectorStoreClient
-from research_agent.core.query_generator import QueryGenerator
+from research_agent.core.query_planner import QueryPlanner
 from research_agent.core.document_analyzer import DocumentAnalyzer
 from research_agent.core.decision_engine import DecisionEngine
 from research_agent.core.report_synthesizer import ReportSynthesizer
@@ -13,11 +13,11 @@ from research_agent.tools.fetch_content import fetch_content
 logger = logging.getLogger(__name__)
 
 class ResearchOrchestrator:
-    def __init__(self, vector_store_client=None, query_generator=None, document_analyzer=None, decision_engine=None, report_synthesizer=None):
+    def __init__(self, vector_store_client=None, query_planner=None, document_analyzer=None, decision_engine=None, report_synthesizer=None):
         self.vector_store_client = vector_store_client or VectorStoreClient(dim=768)
-        self.query_generator = query_generator or QueryGenerator()
+        self.query_planner = query_planner or QueryPlanner()
         self.analyzer = document_analyzer or DocumentAnalyzer()
-        self.decision_engine = decision_engine or DecisionEngine(query_generator=self.query_generator)
+        self.decision_engine = decision_engine or DecisionEngine(query_planner=self.query_planner)
         self.synthesizer = report_synthesizer or ReportSynthesizer()
 
     def run(self, topic: str) -> str:
@@ -27,7 +27,7 @@ class ResearchOrchestrator:
         logger.info(f"Starting research orchestrator loop for topic: '{topic}'")
         state = AgentState()
         
-        queries = self.query_generator.generate_queries(topic)
+        queries = self.query_planner.generate_queries(topic)
         max_iterations = int(get_config_or_default("AGENT_MAX_ITERATIONS", "5"))
         max_search_results = int(get_config_or_default("AGENT_MAX_SEARCH_RESULTS", "3"))
 
@@ -83,28 +83,28 @@ class ResearchOrchestrator:
                     break
             else:
                 logger.warning("No chunks retrieved. Skipping analysis.")
-                
+
             # DECIDE NEXT QUERIES
             decision = self.decision_engine.decide_next_step(state)
             queries = decision.get("queries", [])
-            
+
             if decision.get("action") == "finish":
                 logger.info("Decision engine signaled to finish. Breaking loop.")
                 break
-                
+
             if not queries:
                 logger.info("No new queries generated. Breaking loop.")
                 break
-                
+
             state.iteration += 1
 
         # FINAL RETRIEVAL
         logger.info("Performing final retrieval.")
         final_chunks = self.vector_store_client.search(topic, top_k=15)
-        
+
         # REPORT
         logger.info("Generating final report.")
         report = self.synthesizer.generate_report(final_chunks)
-        
+
         return report
 

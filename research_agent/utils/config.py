@@ -21,6 +21,18 @@ class ConfigError(RuntimeError):
     """Raised when a required configuration key is missing."""
 
 
+def resolve_env_value(value: str) -> str:
+    """Recursively resolve environment variable references in the format ${VAR_NAME}."""
+    if value.startswith('${') and value.endswith('}'):
+        var_name = value[2:-1]
+        resolved = os.environ.get(var_name)
+        if resolved is None:
+            raise ConfigError(f"Referenced environment variable '{var_name}' not found.")
+        return resolve_env_value(resolved)
+    else:
+        return value
+
+
 def get_config(key: str) -> str:
     """Return the value for *key* from the environment.
 
@@ -52,7 +64,7 @@ def get_config(key: str) -> str:
             f"Required configuration '{key}' is not set. "
             f"Please add it to a .env file or set it as an environment variable."
         )
-    return value
+    return resolve_env_value(value)
 
 
 def get_config_or_default(key: str, default: str) -> str:
@@ -74,4 +86,5 @@ def get_config_or_default(key: str, default: str) -> str:
     str
         The configuration value, or *default*.
     """
-    return os.environ.get(key, default)
+    value = os.environ.get(key, default)
+    return resolve_env_value(value)

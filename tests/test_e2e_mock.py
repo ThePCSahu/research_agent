@@ -1,19 +1,19 @@
 import sys
 import logging
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from research_agent.pipeline.agent_loop import ResearchAgent
+from research_agent.pipeline.research_orchestrator import ResearchOrchestrator
 
 logging.basicConfig(level=logging.INFO)
 
 def main():
-    with patch("research_agent.pipeline.agent_loop.QueryGenerator") as mock_qg_class, \
-         patch("research_agent.pipeline.agent_loop.web_search") as mock_web_search, \
-         patch("research_agent.pipeline.agent_loop.fetch_content") as mock_fetch, \
-         patch("research_agent.pipeline.agent_loop.VectorStoreClient") as mock_vsc_class, \
-         patch("research_agent.pipeline.agent_loop.Analyzer") as mock_analyzer_class, \
-         patch("research_agent.pipeline.agent_loop.DecisionEngine") as mock_decision_class, \
-         patch("research_agent.pipeline.agent_loop.Synthesizer") as mock_report_class:
+    with patch("research_agent.pipeline.research_orchestrator.QueryPlanner") as mock_qg_class, \
+         patch("research_agent.pipeline.research_orchestrator.web_search") as mock_web_search, \
+         patch("research_agent.pipeline.research_orchestrator.fetch_content") as mock_fetch, \
+         patch("research_agent.pipeline.research_orchestrator.VectorStoreClient") as mock_vsc_class, \
+         patch("research_agent.pipeline.research_orchestrator.DocumentAnalyzer") as mock_analyzer_class, \
+         patch("research_agent.pipeline.research_orchestrator.DecisionEngine") as mock_decision_class, \
+         patch("research_agent.pipeline.research_orchestrator.ReportSynthesizer") as mock_report_class:
         
         mock_qg_class.return_value.generate_queries.return_value = ["dummy query"]
         mock_web_search.return_value = [{"url": "http://dummy.url"}]
@@ -36,7 +36,7 @@ def main():
         mock_report_mock.generate_report.return_value = "FINAL MOCK REPORT"
         
         print("Starting mock E2E Run...")
-        agent = ResearchAgent()
+        agent = ResearchOrchestrator()
         report = agent.run("Dummy Topic")
         print("Report received:")
         print(report)

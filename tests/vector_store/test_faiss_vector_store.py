@@ -1,5 +1,5 @@
 import pytest
-from src.retrieval.faiss_vector_store import FaissVectorStore
+from research_agent.vector_store.faiss_vector_store import FaissVectorStore
 
 def test_faiss_vector_store():
     # Setup

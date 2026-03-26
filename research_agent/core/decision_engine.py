@@ -15,7 +15,7 @@ from typing import Any, List
 from research_agent.models.llm_client import LLMClient
 from research_agent.memory.state import AgentState
 from research_agent.utils.config import get_config_or_default
-from .query_generator import QueryGenerator
+from .query_planner import QueryPlanner
 
 
 logger = logging.getLogger(__name__)
@@ -102,9 +102,9 @@ def _dedupe_queries_against_state(queries: List[str], state: AgentState) -> List
 class DecisionEngine:
     """Return the next loop action and optional search queries."""
 
-    def __init__(self, llm_client: Any = None, query_generator: Any = None):
+    def __init__(self, llm_client: Any = None, query_planner: Any = None):
         self.llm = llm_client or LLMClient()
-        self.query_generator = query_generator or QueryGenerator(llm_client=self.llm)
+        self.query_planner = query_planner or QueryPlanner(llm_client=self.llm)
 
     def decide_next_step(self, state: AgentState) -> dict:
         """Return the next loop action and optional search queries.
@@ -113,14 +113,15 @@ class DecisionEngine:
         * Gaps present → LLM proposes queries; falls back to :func:`generate_queries` \
           if needed; respects ``MAX_ITERATIONS``.
         """
-        gaps = _normalized_gaps(state)
-        if not gaps:
-            logger.info("Decision: no gaps — finish")
-            return {"action": "finish", "queries": []}
 
         max_iterations = int(get_config_or_default("AGENT_MAX_ITERATIONS", "5"))
         if state.iteration >= max_iterations:
             logger.info("Decision: max iterations (%s) — finish", max_iterations)
+            return {"action": "finish", "queries": []}
+
+        gaps = _normalized_gaps(state)
+        if not gaps:
+            logger.info("Decision: no gaps — finish")
             return {"action": "finish", "queries": []}
 
         user_content = (
@@ -148,7 +149,7 @@ class DecisionEngine:
         if not queries:
             logger.info("Decision: empty queries after LLM — fallback to query generator from gaps")
             topic = "; ".join(gaps[:12])
-            queries = self.query_generator.generate_queries_from_gaps(topic)
+            queries = self.query_planner.generate_queries_from_gaps(topic)
             queries = _dedupe_queries_against_state(queries, state)
 
         if not queries:

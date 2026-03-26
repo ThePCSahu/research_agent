@@ -31,7 +31,7 @@ by source 2 should include [2] near the relevant sentences. You may cite multipl
 like [1][3].
 3. End with a **## Sources** section: numbered lines matching the reference list, each line \
 like: `[n] **Title** — URL` (use the title and URL given; if title is missing, use the domain \
-or "Source").
+or "Source"; Don't add same source more than once).
 4. Write in clear, neutral prose. Do not invent facts not supported by the excerpts.
 5. Return **only** the Markdown report — no JSON, no preamble or closing commentary \
 outside the document.

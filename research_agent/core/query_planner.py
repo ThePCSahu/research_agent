@@ -1,5 +1,5 @@
 """
-Query generator — decompose a topic into targeted web-search queries.
+Query Planner — decompose a topic into targeted web-search queries.
 
 Uses :class:`~research_agent.llm_client.LLMClient` to analyse a research topic and
 produce multiple diverse queries that cover different facets of the subject.
@@ -38,11 +38,11 @@ Rules:
 4. Return ONLY a JSON array of strings — no explanation, no markdown, \
    no numbering.
 
-["query one", "query two", "query three"]
+["query one", "query two"]
 """
 
 _GAPS_SYSTEM_PROMPT = """\
-You are a research planner. Given a topic, output **5 to 8 distinct web-search \
+You are a research strategist. Given a topic, output **5 to 8 distinct web-search \
 queries** a researcher would run in Google.
 
 Each query must target a **different angle**. Cover these facets where they apply \
@@ -64,7 +64,7 @@ Example:
 """
 
 
-class QueryGenerator:
+class QueryPlanner:
     """Analyse a topic and produce smart, multi-angle search queries."""
 
     def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
