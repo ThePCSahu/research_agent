@@ -8,10 +8,17 @@ Fetches configuration values with the following priority:
 """
 
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load .env file if it exists; does nothing if the file is missing.
-load_dotenv()
+import logging
+logger = logging.getLogger(__name__)
+
+# Load .env file if it exists; searches parent directories if needed.
+# override=True ensures .env values take precedence over existing shell variables.
+if load_dotenv(find_dotenv(), override=True):
+    logger.info("Environment variables loaded from .env")
+else:
+    logger.warning("No .env file found via find_dotenv()")
 
 
 # Configuration constants moved to .env
