@@ -6,6 +6,7 @@ Fits the pipeline: Retrieve → **Synthesize** → Report.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any, Dict, List, Tuple
@@ -18,23 +19,20 @@ logger = logging.getLogger(__name__)
 _MAX_USER_MESSAGE_CHARS = 48_000
 
 _SYSTEM_PROMPT = """\
-You are the final synthesizer for a research deliverable.
+You are the final synthesizer for a research deliverable about the topic mentioned in the user message.
 
-You receive numbered **source excerpts** and a **reference list** with titles and URLs \
-(metadata). Produce one cohesive **Markdown** document.
+You receive numbered **source excerpts**, a **reference list** with titles and URLs, and an **analysis summary** containing insights, contradictions, and source evaluations.
+
+Produce one cohesive **Markdown** document.
 
 Requirements:
-1. **Group content by theme** — use `##` for major themes and `###` for subtopics as needed. \
-Each section should synthesize across sources where they overlap.
-2. **Cite sources** using the bracket numbers from the reference list, e.g. claims supported \
-by source 2 should include [2] near the relevant sentences. You may cite multiple sources \
-like [1][3].
-3. End with a **## Sources** section: numbered lines matching the reference list, each line \
-like: `[n] **Title** — URL` (use the title and URL given; if title is missing, use the domain \
-or "Source"; Don't add same source more than once).
-4. Write in clear, neutral prose. Do not invent facts not supported by the excerpts.
-5. Return **only** the Markdown report — no JSON, no preamble or closing commentary \
-outside the document.
+1. **Executive Summary** — Start with a brief overview of the key insights.
+2. **Consensus & Contradictions** — Group content by theme. Explicitly address areas where sources agree and where they conflict. Use `##` for major themes and `###` for subtopics.
+3. **Cite sources** using the bracket numbers from the reference list, e.g. [2] or [1][3].
+4. **Source Reliability** — Briefly mention the credibility or limitations of the sources used if relevant (based on the provided evaluation).
+5. **## Sources** section — numbered lines matching the reference list: `[n] **Title** — URL`.
+6. Write in clear, neutral prose. Do not invent facts.
+7. Return **only** the Markdown report.
 """
 
 
@@ -90,8 +88,8 @@ class ReportSynthesizer:
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client or LLMClient()
 
-    def generate_report(self, chunks: list[dict]) -> str:
-        """Return a Markdown report grouped by theme with citations from chunk metadata."""
+    def generate_report(self, chunks: list[dict], state: AgentState) -> str:
+        """Return a Markdown report for *topic* grouped by theme with citations from chunk metadata."""
         bundle = _format_chunk_bundle(chunks)
         if not bundle:
             logger.info("Synthesizer: no chunk text — returning stub report")
@@ -101,12 +99,20 @@ class ReportSynthesizer:
             bundle = bundle[:_MAX_USER_MESSAGE_CHARS] + "\n\n… *(truncated)*\n"
             logger.warning("Synthesizer: user message truncated to %s chars", _MAX_USER_MESSAGE_CHARS)
 
+        analysis_summary = (
+            f"Key Insights: {json.dumps(state.insights, indent=2)}\n"
+            f"Contradictions: {json.dumps(state.contradictions, indent=2)}\n"
+            f"Source Evaluations: {json.dumps(state.sources_evaluation, indent=2)}\n"
+        )
+
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": (
-                    "Produce the Markdown report described in the system message.\n\n" + bundle
+                    f"Produce the Markdown report for the topic: '{state.topic}'\n\n"
+                    f"--- Analysis Summary ---\n{analysis_summary}\n\n"
+                    f"--- Source Data ---\n{bundle}"
                 ),
             },
         ]

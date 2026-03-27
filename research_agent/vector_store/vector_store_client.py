@@ -61,21 +61,22 @@ class VectorStoreClient:
         embeddings = self.embedding_client.get_embeddings(all_chunks)
         self.vector_store.add(embeddings, all_chunks, all_metadata)
         
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 5, threshold: float = 0.8) -> List[Dict[str, Any]]:
         """
         Search for the most relevant text chunks matching the query.
         
         :param query: The search query string.
         :param top_k: The number of top results to return.
-        :return: A list of dictionaries containing 'text', 'metadata', and 'distance'.
+        :param threshold: Minimum similarity threshold (0.0 to 1.0).
+        :return: A list of dictionaries containing 'text', 'metadata', and 'score'.
         """
         if not query.strip():
             return []
             
-        logger.info(f"Searching vector store for query: '{query}'")
+        logger.info(f"Searching vector store for query: '{query}' with threshold {threshold}")
         query_embeddings = self.embedding_client.get_embeddings([query])
         
         if not query_embeddings:
             return []
             
-        return self.vector_store.search(query_embeddings[0], top_k)
+        return self.vector_store.search(query_embeddings[0], top_k, threshold=threshold)

@@ -14,10 +14,14 @@ def _normalize_query(q: str) -> str:
 class AgentState:
     """Tracks research-agent progress across iterations."""
 
+    topic: str
     queries_done: List[str] = field(default_factory=list)
     urls_fetched: Set[str] = field(default_factory=set)
     insights: List[str] = field(default_factory=list)
+    contradictions: List[str] = field(default_factory=list)
     gaps: List[str] = field(default_factory=list)
+    sources_evaluation: List[str] = field(default_factory=list)
+    working_memory: List[dict] = field(default_factory=list)
     iteration: int = 0
     _queries_seen: Set[str] = field(default_factory=set, init=False, repr=False, compare=False)
 

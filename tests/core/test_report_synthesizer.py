@@ -10,6 +10,7 @@ from research_agent.core.report_synthesizer import (
     _normalize_chunk,
     _strip_wrapping_fences,
 )
+from research_agent.memory.state import AgentState
 
 
 def test_normalize_chunk_merges_metadata_and_top_level():
@@ -54,8 +55,9 @@ def test_strip_wrapping_fences():
 
 def test_generate_report_empty_chunks_no_llm():
     synth = ReportSynthesizer()
+    state = AgentState(topic="test")
     with patch.object(synth.llm, "chat") as mock_chat:
-        out = synth.generate_report([])
+        out = synth.generate_report([], state)
         mock_chat.assert_not_called()
     assert "No source excerpts" in out
 
@@ -66,7 +68,8 @@ def test_generate_report_calls_llm(mock_llm_client):
         {"text": "Evidence.", "metadata": {"title": "T", "url": "https://z"}},
     ]
     synth = ReportSynthesizer(llm_client=mock_llm_client)
-    out = synth.generate_report(chunks)
+    state = AgentState(topic="T")
+    out = synth.generate_report(chunks, state)
 
     mock_llm_client.chat.assert_called_once()
     assert "# Report" in out

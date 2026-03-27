@@ -13,54 +13,28 @@ import re
 from typing import List, Optional
 
 from research_agent.models.llm_client import LLMClient
+from research_agent.utils.config import get_config_or_default
 
 
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
-You are a research strategist. Your job is to take a broad research topic \
-and break it down into **5 to 8 highly targeted web-search queries**.
+You are a research strategist. Your job is to take the broad research topic mentioned in the user message \
+and break it down into **{min_q}-{max_q} highly targeted web-search queries**.
+
+For EACH query, you must also provide a short (1-2 paragraph) hypothetical but highly accurate \
+and detailed response that answers the query (HyDE). This response should contain technical terms \
+and facts expected in an authoritative source.
 
 Rules:
 1. Each query must focus on a DIFFERENT angle of the topic.
-   Cover a mix of these perspectives where relevant:
-   - Definitions & fundamentals
-   - Recent news & developments (include the current year when helpful)
-   - Expert opinions & academic research
-   - Real-world applications & case studies
-   - Statistics, data & market trends
-   - Comparisons & alternatives
-   - Challenges, risks & criticisms
-   - Future outlook & predictions
-2. Queries should be concise (5-15 words) and phrased exactly as someone \
-   would type them into Google.
-3. Do NOT repeat the same angle twice.
-4. Return ONLY a JSON array of strings — no explanation, no markdown, \
-   no numbering.
+2. Return ONLY a JSON array of objects.
+3. Each object must have "query" and "hyde" keys.
 
-["query one", "query two"]
-"""
-
-_GAPS_SYSTEM_PROMPT = """\
-You are a research strategist. Given a topic, output **5 to 8 distinct web-search \
-queries** a researcher would run in Google.
-
-Each query must target a **different angle**. Cover these facets where they apply \
-to the topic (skip only what is clearly irrelevant):
-
-1. **Overview** — definitions, scope, background, how it works
-2. **Statistics** — numbers, data, benchmarks, measurable outcomes
-3. **Trends** — recent changes, forecasts, adoption, momentum over time
-4. **Geography** — regional or country-specific angles, comparisons across places
-5. **Edge cases** — limits, failures, rare scenarios, controversies, risks
-
-Rules:
-- Queries: 5–15 words each, natural search-engine phrasing.
-- Do **not** repeat the same angle or near-duplicate wording.
-- Return **only** a JSON array of strings — no markdown, no commentary.
-
-Example:
-["query one", "query two"]
+[
+  {{"query": "q1", "hyde": "hypothetical answer 1"}},
+  {{"query": "q2", "hyde": "hypothetical answer 2"}}
+]
 """
 
 
@@ -69,81 +43,36 @@ class QueryPlanner:
 
     def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
         self.llm = llm_client or LLMClient()
+        self.min_q = get_config_or_default("AGENT_MIN_QUERIES", "2")
+        self.max_q = get_config_or_default("AGENT_MAX_QUERIES", "4")
 
-    def generate_queries(self, topic: str) -> List[str]:
-        """Return a list of targeted search queries for *topic*.
-
-        Parameters
-        ----------
-        topic : str
-            The research topic to decompose.
-
-        Returns
-        -------
-        list[str]
-            5–8 search-engine-ready query strings.
-        """
-        logger.info("Generating search queries for topic: %s", topic)
+    def generate_queries(self, topic: str) -> List[Dict[str, str]]:
+        """Return a list of targeted search queries and their HyDE answers."""
+        logger.info("Generating search queries/hyde for topic: %s", topic)
 
         messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": topic},
+            {"role": "system", "content": _SYSTEM_PROMPT.format(min_q=self.min_q, max_q=self.max_q)},
+            {"role": "user", "content": f"Generate queries and hyde for the topic: '{topic}'"},
         ]
 
         raw = self.llm.chat(messages=messages, temperature=0.7)
-        logger.debug("Raw LLM response:\n%s", raw)
-
-        queries = self._parse_queries(raw)
-        logger.info("Generated %d queries for topic '%s'", len(queries), topic)
-        return queries
-
-    def generate_queries_from_gaps(self, topic: str) -> List[str]:
-        """Use the LLM to produce diverse, non-overlapping search queries for *topic*."""
-        logger.info("Planner generating queries for topic: %s", topic)
-
-        messages = [
-            {"role": "system", "content": _GAPS_SYSTEM_PROMPT},
-            {"role": "user", "content": topic},
-        ]
-        raw = self.llm.chat(messages=messages, temperature=0.7)
-        logger.debug("Planner raw LLM response:\n%s", raw)
-
-        parsed = self._parse_queries(raw)
-        queries = self._dedupe_queries(parsed)
-        logger.info("Planner produced %d queries after deduplication", len(queries))
-        return queries
-
+        return self._parse_queries(raw)
 
     @staticmethod
-    def _parse_queries(raw: str) -> List[str]:
-        """Parse the LLM output into a list of query strings.
-
-        Tries JSON first, then falls back to a line-by-line heuristic
-        (useful for smaller models that don't always follow JSON format).
-        """
+    def _parse_queries(raw: str) -> List[Dict[str, str]]:
+        """Parse the LLM output into a list of {query, hyde} objects."""
         try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list) and all(isinstance(q, str) for q in parsed):
-                return [q.strip() for q in parsed if q.strip()]
-        except json.JSONDecodeError:
-            pass
-
-        match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if match:
-            try:
+            import json
+            import re
+            match = re.search(r"\[.*\]", raw, re.DOTALL)
+            if match:
                 parsed = json.loads(match.group())
                 if isinstance(parsed, list):
-                    return [str(q).strip() for q in parsed if str(q).strip()]
-            except json.JSONDecodeError:
-                pass
-
-        logger.warning("JSON parsing failed — falling back to line splitting")
-        queries: List[str] = []
-        for line in raw.splitlines():
-            cleaned = re.sub(r"^[\s\-\*\d\.\)]+", "", line).strip().strip("\"'")
-            if cleaned:
-                queries.append(cleaned)
-        return queries
+                    return [q for q in parsed if isinstance(q, dict) and "query" in q and "hyde" in q]
+        except Exception as e:
+            logger.error(f"Failed to parse queries: {e}")
+        
+        return []
 
     @staticmethod
     def _normalize_query(q: str) -> str:
@@ -163,4 +92,3 @@ class QueryPlanner:
             seen.add(key)
             out.append(cls._normalize_query(q))
         return out
-

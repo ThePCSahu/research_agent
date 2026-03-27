@@ -15,10 +15,10 @@ def web_search(query: str, top_k: int = 5) -> list[dict]:
     """
     logger.info("web_search called with query: '%s', top_k: %d", query, top_k)
 
-    api_key = get_config_or_default("SERPAPI_API_KEY", "")
+    api_key = get_config_or_default("WEBSEARCH_SERPAPI_API_KEY", "")
     if not api_key:
-        logger.error("SERPAPI_API_KEY is not set.")
-        return [{"url": "", "title": "Error", "body": "SERPAPI_API_KEY is missing."}]
+        logger.error("WEBSEARCH_SERPAPI_API_KEY is not set.")
+        return [{"url": "", "title": "Error", "body": "WEBSEARCH_SERPAPI_API_KEY is missing."}]
 
     try:
         url = "https://google.serper.dev/search"

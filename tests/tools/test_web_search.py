@@ -5,7 +5,7 @@ from research_agent.tools.web_search import web_search, WEB_SEARCH_TOOL
 
 
 def test_web_search_success(monkeypatch):
-    monkeypatch.setenv("SERPAPI_API_KEY", "test_key")
+    monkeypatch.setenv("WEBSEARCH_SERPAPI_API_KEY", "test_key")
 
     mock_response_data = {
         "organic_results": [
@@ -45,7 +45,7 @@ def test_web_search_success(monkeypatch):
 
 
 def test_web_search_empty(monkeypatch):
-    monkeypatch.setenv("SERPAPI_API_KEY", "test_key")
+    monkeypatch.setenv("WEBSEARCH_SERPAPI_API_KEY", "test_key")
 
     with patch('research_agent.tools.web_search.requests.post') as mock_post:
         mock_resp = MagicMock()
@@ -59,14 +59,14 @@ def test_web_search_empty(monkeypatch):
 
 
 def test_web_search_missing_api_key(monkeypatch):
-    monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
+    monkeypatch.delenv("WEBSEARCH_SERPAPI_API_KEY", raising=False)
     output = web_search("quantum", top_k=2)
     assert len(output) == 1
     assert output[0]["title"] == "Error"
 
 
 def test_web_search_error(monkeypatch):
-    monkeypatch.setenv("SERPAPI_API_KEY", "test_key")
+    monkeypatch.setenv("WEBSEARCH_SERPAPI_API_KEY", "test_key")
 
     with patch('research_agent.tools.web_search.requests.post') as mock_post:
         mock_post.side_effect = Exception("API limit exceeded")
